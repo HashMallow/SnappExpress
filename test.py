@@ -15,7 +15,7 @@ args = parser.parse_args()
 url = "https://snapp.express/vendor-list/api"
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
+    "User-Agent": "5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
     "Accept": "*/*",
     "Content-Type": "application/json",
     "x-metadata": json.dumps({
