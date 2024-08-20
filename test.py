@@ -1,5 +1,16 @@
 import requests
 import json
+import argparse
+import numpy as np
+
+
+parser = argparse.ArgumentParser(description="SnappExpress Killer")
+parser.add_argument("-l1", "--lat1", type=float,default=35.823535, help="latitude")
+parser.add_argument("-t1","--lon1", type=float,default=51.088133139649216
+, help="longitude")
+parser.add_argument("-l2", "--lat2", type=float,default=35.5830273127383, help="latitude")
+parser.add_argument("-t2","--lon2", type=float,default=51.59405717956719, help="longitude")
+args = parser.parse_args()
 
 url = "https://snapp.express/vendor-list/api"
 
@@ -10,11 +21,9 @@ headers = {
     "x-metadata": json.dumps({
         "client": "PWA",
         "optionalClient": "PWA",
-        "lat": "35.69",
-        "long": "51.401"
+        "lat": f"{np.mean([args.lat1,args.lat2])}",
+        "long": f"{np.mean([args.lon1,args.lon2])}"
     }),
-
-    # "Sec-Fetch-Mode": "cors",
 }
 
 payload = {
@@ -22,7 +31,7 @@ payload = {
     "variables": {
         "variable": "-1",
         "page": 0,
-        "pageSize": 18,
+        "pageSize": 100,
         "filters": {
             "superType": [4],
             "mode": "CURRENT",
@@ -103,7 +112,7 @@ response = requests.post(url, headers=headers, json=payload)
 if response.status_code == 200:
     data = response.json()
     # Now you can work with the data
-    print(data)
+    print(len(data['data']['vendorList']['data']['finalResult']))
 else:
     print(f"Request failed with status code: {response.status_code}")
     print(response.text)
