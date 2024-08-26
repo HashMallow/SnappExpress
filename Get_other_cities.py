@@ -11,7 +11,7 @@ import math
 
 
 CPU_THREADS = multiprocessing.cpu_count() 
-MAX_THREADS = (CPU_THREADS * 32) // 9
+MAX_THREADS = CPU_THREADS * 4
 
 class Worker(Thread):
     """ Thread executing tasks from a given tasks queue """
@@ -56,22 +56,16 @@ class ThreadPool:
         """ Wait for completion of all the tasks in the queue """
         self.tasks.join()
 
-parser = argparse.ArgumentParser(description="SnappExpress Killer")
-parser.add_argument("-l", "--lat", type=float,default=32.68056, help="latitude")
-parser.add_argument("-t","--lon", type=float,default=51.65259, help = "longitude")
-parser.add_argument("-c","--city", type=str,default="Esfahan")
+# parser = argparse.ArgumentParser(description="SnappExpress Killer")
+# parser.add_argument("-l", "--lat", type=float,default=32.68056, help="latitude")
+# parser.add_argument("-t","--lon", type=float,default=51.65259, help = "longitude")
+# parser.add_argument("-c","--city", type=str,default="Esfahan")
 
 
-args = parser.parse_args()
+# args = parser.parse_args()
 
 url = "https://snapp.express/vendor-list/api"
 
-radius = 0.12
-if args.city in ["Esfahan", "Tabriz", "Mashhad"]:
-    radius = 0.17
-
-latitudes = np.linspace(args.lat - radius,args.lat + radius,80)
-longitudes = np.linspace(args.lon - radius,args.lon + radius,90)
 
 payload = {
     "operationName": "getVendorList",
@@ -154,7 +148,7 @@ payload = {
 }
 
 def is_in_circle(lat, lon):
-    if math.sqrt(math.pow(lat-args.lat, 2) + math.pow(lon-args.lon, 2)) <= radius:
+    if math.sqrt(math.pow(lat-alat, 2) + math.pow(lon-alon, 2)) <= radius:
         return True
     return False
 
@@ -163,7 +157,7 @@ def scrape(item):
     i,lat,lon = item
     if not is_in_circle(lat, lon):
         return None
-    print(i,'/')
+    print(i)
     headers = {
         "User-Agent": "5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
         "Accept": "*/*",
@@ -200,13 +194,7 @@ def scrape(item):
         print(response.text)
 
 
-dicts = {}
-cnt = 1
-items = []
-for latitude in latitudes:
-    for longitude in longitudes:
-        items.append((cnt,latitude,longitude))
-        cnt+=1
+
 
 # Proxy information
 proxy_domain = "p.webshare.io"
@@ -222,19 +210,43 @@ proxies = {
     "http": proxy_url,
     "https": proxy_url
 }
-pool = ThreadPool(MAX_THREADS)
-pool.map(scrape, items)
-pool.wait_completion()
+import os
+if __name__ == '__main__':
+    cities_df = pd.read_excel('cities.xlsx')
+    for city, alat, alon in zip(cities_df['english_title'],cities_df['latitude'],cities_df['longitude']):
+        flag = False
+        for item in os.listdir('Data'):
+            if item == f'Express_Vendors_{city}.csv':
+                flag = True
+                break
+        if flag:
+            continue
+        print(city, end=":\n\n")
+        radius = 0.12
+        if city in ["Esfahan", "Tabriz", "Mashhad"]:
+            radius = 0.17
+        latitudes = np.linspace(alat - radius,alat + radius,80)
+        longitudes = np.linspace(alon - radius,alon + radius,90)
+        dicts = {}
+        cnt = 1
+        items = []
+        for latitude in latitudes:
+            for longitude in longitudes:
+                items.append((cnt,latitude,longitude))
+                cnt+=1
+        pool = ThreadPool(MAX_THREADS)
+        pool.map(scrape, items)
+        pool.wait_completion()
 
-final_list = []
-for item in dicts:
-    final_list += dicts[item]
+        final_list = []
+        for item in dicts:
+            final_list += dicts[item]
 
-dk = {}
-for i in range(len(final_list)):
-    dk[i] = final_list[i]['data']
+        dk = {}
+        for i in range(len(final_list)):
+            dk[i] = final_list[i]['data']
 
-df = pd.DataFrame(dk).T
-df.drop_duplicates(inplace=True)
-df.reset_index(drop=True, inplace=True)
-df.to_csv(f'Express_Vendors_{args.city}.csv', index=False, encoding='utf-8-sig')
+        df = pd.DataFrame(dk).T
+        df.drop(columns=['deliveryFee'], inplace = True)
+        df.drop_duplicates(inplace=True)
+        df.to_csv(f'Express_Vendors_{city}.csv', index=False, encoding='utf-8-sig')
