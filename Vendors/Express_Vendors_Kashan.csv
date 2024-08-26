@@ -1,0 +1,2 @@
+﻿id,title,isMarketParty,backgroundImage,commentCount,minimumOrderValue,code,status,area,countReview,isExpressPin,logo,isOpen,preOrderEnabled,deliveryTime,discountValueForView,rating,__typename
+97983,سوپرمارکت شکرریز,False,https://cdn.snapp.express/media/cache/vendor_item_cover/uploads/images/vendors/covers/616d7b19a980a.jpg,8307,70000,0rojj9,ACTIVE,FIXME,450,False,https://cdn.snapp.express/media/cache/vendor_logo/uploads/images/vendors/logos/default.png,False,True,30,,8.6,VendorListItem
