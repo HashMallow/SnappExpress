@@ -1,51 +1,39 @@
-import multiprocessing
-import math
-from threading import Thread
-from queue import Queue
+import asyncio
 
+class AsyncPool:
+    def __init__(self, max_workers):
+        self.max_workers = max_workers
+        self.semaphore = asyncio.Semaphore(max_workers)
+        self.tasks = []
 
-CPU_THREADS = multiprocessing.cpu_count() 
-MAX_THREADS = CPU_THREADS * 4
-
-class Worker(Thread):
-    """ Thread executing tasks from a given tasks queue """
-
-    def __init__(self, tasks):
-        Thread.__init__(self)
-        self.tasks = tasks
-        self.daemon = True
-        self.start()
-
-    def run(self):
-        while True:
-            func, args, kargs = self.tasks.get()
+    async def add_task(self, coro):
+        async with self.semaphore:
+            task = asyncio.create_task(coro)
+            self.tasks.append(task)
             try:
-                func(*args, **kargs)
-            except Exception as e:
-                # An exception happened in this thread
-                print(e)
+                return await task
             finally:
-                # Mark this task as done, whether an exception happened or not
-                self.tasks.task_done()
+                self.tasks.remove(task)
 
+    async def map(self, func, args_list):
+        return await asyncio.gather(*[self.add_task(func(arg)) for arg in args_list])
 
-class ThreadPool:
-    """ Pool of threads consuming tasks from a queue """
+    async def wait_completion(self):
+        if self.tasks:
+            await asyncio.gather(*self.tasks)
 
-    def __init__(self, num_threads):
-        self.tasks = Queue(num_threads)
-        for _ in range(num_threads):
-            Worker(self.tasks)
+# Test function
+async def function(name):
+    print(f"Processing {name}")
+    await asyncio.sleep(1)  # Simulate some work
+    print(f"Finished {name}")
+    return name
 
-    def add_task(self, func, *args, **kargs):
-        """ Add a task to the queue """
-        self.tasks.put((func, args, kargs))
+async def main():
+    pool = AsyncPool(100)
+    results = await pool.map(function, range(1000))
+    print("All tasks completed")
+    print(f"Number of results: {len(results)}")
 
-    def map(self, func, args_list):
-        """ Add a list of tasks to the queue """
-        for args in args_list:
-            self.add_task(func, args)
-
-    def wait_completion(self):
-        """ Wait for completion of all the tasks in the queue """
-        self.tasks.join()
+if __name__ == "__main__":
+    asyncio.run(main())

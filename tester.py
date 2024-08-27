@@ -1,36 +1,50 @@
-import requests
 import pandas as pd
-from Parallel import *
+from Parallel import AsyncPool
 from base_settings import *
 from bs4 import BeautifulSoup
-from lxml import etree
+import asyncio
+import aiohttp
 
+proxies = get_proxies()
+headers = get_headers()
 
-urls = []
-def link_generator(title, code):
+async def link_generator(title, code):
     title = title.replace(' ', '-')
     url = f'https://snapp.express/supermarket/{title}+/{code}'
     return url
 
-vendors_df = pd.read_csv("Vendors.csv")
-proxies = get_proxies()
-headers = get_headers()
-
-def scrape(item):
+async def scrape(session, item):
     title, code = item
-    url = link_generator(title, code)
-    res = requests.get(url, proxies=proxies)
-    # soup = BeautifulSoup(res .content, 'html.parser')
-    # print(soup.prettify())
-    # with open('output.html', 'w', encoding='utf-8') as file:
-    #     file.write(str(soup))
-    # if res.status_code != 200:
-        print(url, res.status_code)
+    url = await link_generator(title, code)
+    try:
+        async with session.get(url, proxy=proxies.get('http'), headers=headers) as res:
+            print(url, res.status)
+            # If you need to parse the content:
+            # content = await res.text()
+            # soup = BeautifulSoup(content, 'html.parser')
+            # print(soup.prettify())
+            # with open(f'{code}.html', 'w', encoding='utf-8') as file:
+            #     file.write(str(soup))
+            return url, res.status
+    except Exception as e:
+        print(f"Error scraping {url}: {str(e)}")
+        return url, str(e)
 
-for title, code in zip(vendors_df['title'], vendors_df['code']):
-    urls.append((title,code))
-    break
+async def main():
+    urls = []
+    vendors_df = pd.read_csv("Vendors.csv")
+    for title, code in zip(vendors_df['title'], vendors_df['code']):
+        urls.append((title,code))
+    
+    async with aiohttp.ClientSession() as session:
+        pool = AsyncPool(100)
+        results = await pool.map(lambda item: scrape(session, item), urls)
+    
+    # Process results if needed
+    for result in results:
+        if result:
+            url, status = result
+            print(f"Processed {url} with status {status}")
 
-pool = ThreadPool(40)
-pool.map(scrape, urls)
-pool.wait_completion()
+if __name__ == "__main__":
+    asyncio.run(main())
